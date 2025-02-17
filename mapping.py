@@ -67,3 +67,86 @@ def main():
         body.click()
     except Exception as e:
         print("No popup to dismiss:", e)
+    # ---------------------------
+    # 4. Fill in the search form
+    # ---------------------------
+
+    # 4a. Enter the place/city
+    try:
+        # Adjust the XPath based on the actual input field.
+        city_input = wait.until(EC.visibility_of_element_located(
+            (By.XPATH, "//label[@for='city']/following-sibling::input")
+        ))
+        city_input.clear()
+        city_input.send_keys(place)
+        time.sleep(2)  # wait for the dropdown options to load
+
+        # Click the option that matches the entered place (this is a common method)
+        city_option = wait.until(EC.element_to_be_clickable(
+            (By.XPATH, f"//li[contains(text(),'{place}')]")
+        ))
+        city_option.click()
+    except Exception as e:
+        print("Error setting city/place:", e)
+
+    # 4b. Set check-in and check-out dates
+    try:
+        # Click on check-in field to open the calendar widget:
+        checkin_field = wait.until(EC.element_to_be_clickable((By.XPATH, "//label[@for='checkin']")))
+        checkin_field.click()
+        time.sleep(2)
+        # Select check-in date (XPath here assumes the date appears in the aria-label attribute)
+        checkin_elem = wait.until(EC.element_to_be_clickable(
+            (By.XPATH, f"//div[@aria-label='{checkin_date}']")
+        ))
+        checkin_elem.click()
+
+        # Select check-out date
+        checkout_elem = wait.until(EC.element_to_be_clickable(
+            (By.XPATH, f"//div[@aria-label='{checkout_date}']")
+        ))
+        checkout_elem.click()
+    except Exception as e:
+        print("Error setting dates:", e)
+
+    # 4c. Set number of rooms and adults
+    try:
+        occupancy_field = wait.until(EC.element_to_be_clickable(
+            (By.XPATH, "//label[contains(text(),'Rooms & Guests')]")
+        ))
+        occupancy_field.click()
+        time.sleep(2)
+        # The following are sample XPaths. Adjust according to the actual page structure.
+        # Increase number of rooms. Assume the default is 1.
+        room_plus_btn = wait.until(EC.element_to_be_clickable(
+            (By.XPATH, "//span[contains(text(),'Rooms')]/following-sibling::span[contains(@class, 'plus')]")
+        ))
+        for i in range(num_rooms - 1):  # if already 1 room is set, click (rooms - 1) times.
+            room_plus_btn.click()
+            time.sleep(1)
+
+        # Increase number of adults. Assume default is 1 adult and that an adult section exists.
+        adult_plus_btn = wait.until(EC.element_to_be_clickable(
+            (By.XPATH, "//span[contains(text(),'Adults')]/following-sibling::span[contains(@class, 'plus')]")
+        ))
+        for i in range(num_adults - 1):  # if 1 adult already set.
+            adult_plus_btn.click()
+            time.sleep(1)
+
+        # Click on the Apply / Done button for guests.
+        apply_button = wait.until(EC.element_to_be_clickable(
+            (By.XPATH, "//button[text()='APPLY']")
+        ))
+        apply_button.click()
+    except Exception as e:
+        print("Error setting occupancy (rooms & guests):", e)
+
+    # 4d. Click the Search button
+    try:
+        search_button = wait.until(EC.element_to_be_clickable(
+            (By.XPATH, "//button[text()='Search']")
+        ))
+        search_button.click()
+    except Exception as e:
+        print("Error clicking search button:", e)
+
