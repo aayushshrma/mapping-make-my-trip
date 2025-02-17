@@ -56,3 +56,14 @@ def main():
     # Initialize the WebDriver
     driver = webdriver.Chrome(options=chrome_options)
     wait = WebDriverWait(driver, 20)
+    # ---------------------------
+    # 3. Open MakeMyTrip Hotels page
+    # ---------------------------
+    driver.get("https://www.makemytrip.com/hotels/")
+    time.sleep(5)
+    # Example: Click on a blank area to close any login/sign-up popups that appear.
+    try:
+        body = driver.find_element(By.TAG_NAME, "body")
+        body.click()
+    except Exception as e:
+        print("No popup to dismiss:", e)
