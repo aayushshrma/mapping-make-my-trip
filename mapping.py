@@ -174,4 +174,26 @@ def main():
                 continue
     except Exception as e:
         print("Error reading hotel listings:", e)
+    # ---------------------------
+    # 6. Check if any of the retrieved prices is below threshold and send alert email
+    # ---------------------------
+    if not prices:
+        print("No listings found for the hotel name provided.")
+    else:
+        lowest_price = min(prices)
+        print(f"Lowest price found for '{hotel_name}' is: ₹{lowest_price:.2f}")
+        if lowest_price < threshold_price:
+            subject = f"Price Alert: {hotel_name} is now ₹{lowest_price:.2f}"
+            body = (f"Good news!\n\n"
+                    f"The price for {hotel_name} has dropped to ₹{lowest_price:.2f},\n"
+                    f"which is below your threshold of ₹{threshold_price:.2f}.\n\n"
+                    "Visit MakeMyTrip for booking details.")
+            send_email(receiver_email, subject, body, sender_email, sender_password)
+        else:
+            print("Price is above threshold; no email alert sent.")
+
+    # ---------------------------
+    # 7. Clean-up: close the browser
+    # ---------------------------
+    driver.close()
 
