@@ -73,15 +73,13 @@ def main():
 
     # 4a. Enter the place/city
     try:
-        # Adjust the XPath based on the actual input field.
         city_input = wait.until(EC.visibility_of_element_located(
             (By.XPATH, "//label[@for='city']/following-sibling::input")
         ))
         city_input.clear()
         city_input.send_keys(place)
-        time.sleep(2)  # wait for the dropdown options to load
+        time.sleep(2)
 
-        # Click the option that matches the entered place (this is a common method)
         city_option = wait.until(EC.element_to_be_clickable(
             (By.XPATH, f"//li[contains(text(),'{place}')]")
         ))
@@ -116,12 +114,11 @@ def main():
         ))
         occupancy_field.click()
         time.sleep(2)
-        # The following are sample XPaths. Adjust according to the actual page structure.
-        # Increase number of rooms. Assume the default is 1.
+
         room_plus_btn = wait.until(EC.element_to_be_clickable(
             (By.XPATH, "//span[contains(text(),'Rooms')]/following-sibling::span[contains(@class, 'plus')]")
         ))
-        for i in range(num_rooms - 1):  # if already 1 room is set, click (rooms - 1) times.
+        for i in range(num_rooms - 1):
             room_plus_btn.click()
             time.sleep(1)
 
@@ -149,4 +146,32 @@ def main():
         search_button.click()
     except Exception as e:
         print("Error clicking search button:", e)
+    # ---------------------------
+    # 5. Parse the search results for the specific hotel and obtain price details
+    # ---------------------------
+    # Allow time for the search results page to load.
+    time.sleep(10)
+
+    prices = []
+    try:
+        # Locate hotel listings.
+        hotel_cards = wait.until(EC.presence_of_all_elements_located(
+            (By.XPATH, "//div[contains(@class,'listingRowOuter')]")
+        ))
+
+        for card in hotel_cards:
+            try:
+                title_elem = card.find_element(By.XPATH, ".//p[contains(@class,'latoBlack')]")
+                hotel_title = title_elem.text
+
+                if hotel_name.lower() in hotel_title.lower():
+                    # Assuming the price element holds text like "₹12,345"
+                    price_elem = card.find_element(By.XPATH, ".//p[contains(@class,'actualPrice')]")
+                    price_text = price_elem.text.strip()
+                    price_numeric = float(price_text.replace("₹", "").replace(",", ""))
+                    prices.append(price_numeric)
+            except Exception as inner_e:
+                continue
+    except Exception as e:
+        print("Error reading hotel listings:", e)
 
