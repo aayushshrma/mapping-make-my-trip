@@ -37,13 +37,22 @@ def main():
     # ---------------------------
     place = input("Enter place: ")
     checkin_date = input("Enter check-in date (e.g. Thu Oct 12 2023): ")
-    # (Note: Depending on the website’s calendar implementation, you may need to provide the date text exactly as shown on the calendar.)
     checkout_date = input("Enter check-out date (e.g. Sat Oct 14 2023): ")
     num_rooms = int(input("Enter number of rooms: "))
     num_adults = int(input("Enter number of adults: "))
     hotel_name = input("Enter hotel name to search: ")
     threshold_price = float(input("Enter price threshold: "))
-    # Email details: update sender_email and sender_password with your credentials.
     receiver_email = input("Enter your email address to receive alert: ")
-    sender_email = "youremail@example.com"  # Replace with your sender email
-    sender_password = "yourpassword"  # Replace with your sender email password or app-specific password
+    sender_email = "youremail@example.com"
+    sender_password = "yourpassword"
+    # ---------------------------
+    # 2. Set up Chrome options and initialize the webdriver
+    # ---------------------------
+    chrome_options = Options()
+    chrome_options.add_argument("--disable-notifications")
+    chrome_options.add_argument("--start-maximized")
+    # chrome_options.add_argument("--headless")
+
+    # Initialize the WebDriver
+    driver = webdriver.Chrome(options=chrome_options)
+    wait = WebDriverWait(driver, 20)
