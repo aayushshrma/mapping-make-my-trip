@@ -47,7 +47,7 @@ def configure_chrome_options():
 
     return options
 
-def extract_data(options):
+def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_names):
     # Initialize the WebDriver
     driver = webdriver.Chrome(options=options)
 
@@ -55,8 +55,8 @@ def extract_data(options):
     # Open MakeMyTrip Hotels page
     # ---------------------------
 
-    driver.get("https://www.makemytrip.com/hotels/")
-    driver.implicitly_wait(5)
+    driver.get(f"https://www.makemytrip.com/hotels/hotel-listing/?checkin={checkin_date}&city={place_id}&checkout={checkout_date}&roomStayQualifier=2e0e&locusId={place_id}&country=IN&locusType=city&searchText={place}&regionNearByExp=3&rsc=1e2e0e")
+    driver.implicitly_wait(7)
     time.sleep(5)
 
     # Example: Click on a blank area to close any login/sign-up popups that appear.
@@ -66,7 +66,53 @@ def extract_data(options):
     except Exception as e:
         print("No popup to dismiss:", e)
 
+    # hotel page
+    hotel_links = []
+    hotel_container = driver.find_element(By.CLASS_NAME, "hotelListingContainer")
+    n = 0
+    while True:
+        try:
+            hotel_element = hotel_container.find_element(By.ID, f"Listing_hotel_{n}")
+        except:
+            print(f"No. of hotels found: {n + 1}")
+            break
+        hotel_name = hotel_element.find_element(By.ID, "hlistpg_hotel_name").text
+        print(hotel_name)
+        if hotel_name.strip().lower() in hotel_names:
+            hotel_link = hotel_element.find_element(By.TAG_NAME, "a").get_attribute("href")
+            hotel_links.append((hotel_name, hotel_link))
+            if len(hotel_links) == len(hotel_names):
+                break
+        n += 1
+        time.sleep(1)
 
+    details = []
+    for h_name, h_link in hotel_links:
+        print(h_name)
+        driver.get(h_link)
+        time.sleep(5)
+
+        room_section = driver.find_element(By.ID, "roomSection")
+        m = 0
+        while True:
+            try:
+                rooms_ = room_section.find_element(By.ID, f"room{m}")
+            except:
+                break
+            r_name_wrap = rooms_.find_element(By.CLASS_NAME, "rmSelect__card--leftDtlNew")
+            r_name = r_name_wrap.find_element(By.TAG_NAME, "h2").text
+            type_ = rooms_.find_elements(By.CLASS_NAME, "rmSelect__card--rowDtlNew.rmSelect__card--rowNew")
+            for typ in type_:
+                left_box = typ.find_element(By.CLASS_NAME, "rmSelect__card--rowLeftDtlNew")
+                text_type = left_box.find_element(By.TAG_NAME, "h5").text
+                if 'breakfast only' in text_type.lower():
+                    price_parent = typ.find_element(By.CLASS_NAME, "rmSelect__card--rowRightDtlNew")
+                    price_wrapper = price_parent.find_element(By.CLASS_NAME, "rmPayable__newDtl--left").text
+                    details.append((h_name, r_name, price_wrapper))
+                    print((h_name, r_name, price_wrapper))
+                    time.sleep(2)
+
+    return details
 
 
 def main():
@@ -88,90 +134,9 @@ def main():
 
 
 
-    # ---------------------------
-    # 4. Fill in the search form
-    # ---------------------------
 
-    # 4a. Enter the place/city
-    try:
-        city_input = wait.until(EC.visibility_of_element_located(
-            (By.XPATH, "//label[@for='city']/following-sibling::input")
-        ))
-        city_input.clear()
-        city_input.send_keys(place)
-        time.sleep(2)
 
-        city_option = wait.until(EC.element_to_be_clickable(
-            (By.XPATH, f"//li[contains(text(),'{place}')]")
-        ))
-        city_option.click()
-    except Exception as e:
-        print("Error setting city/place:", e)
 
-    # 4b. Set check-in and check-out dates
-    try:
-        # Click on check-in field to open the calendar widget:
-        checkin_field = wait.until(EC.element_to_be_clickable((By.XPATH, "//label[@for='checkin']")))
-        checkin_field.click()
-        time.sleep(2)
-        # Select check-in date (XPath here assumes the date appears in the aria-label attribute)
-        checkin_elem = wait.until(EC.element_to_be_clickable(
-            (By.XPATH, f"//div[@aria-label='{checkin_date}']")
-        ))
-        checkin_elem.click()
-
-        # Select check-out date
-        checkout_elem = wait.until(EC.element_to_be_clickable(
-            (By.XPATH, f"//div[@aria-label='{checkout_date}']")
-        ))
-        checkout_elem.click()
-    except Exception as e:
-        print("Error setting dates:", e)
-
-    # 4c. Set number of rooms and adults
-    try:
-        occupancy_field = wait.until(EC.element_to_be_clickable(
-            (By.XPATH, "//label[contains(text(),'Rooms & Guests')]")
-        ))
-        occupancy_field.click()
-        time.sleep(2)
-
-        room_plus_btn = wait.until(EC.element_to_be_clickable(
-            (By.XPATH, "//span[contains(text(),'Rooms')]/following-sibling::span[contains(@class, 'plus')]")
-        ))
-        for i in range(num_rooms - 1):
-            room_plus_btn.click()
-            time.sleep(1)
-
-        # Increase number of adults. Assume default is 1 adult and that an adult section exists.
-        adult_plus_btn = wait.until(EC.element_to_be_clickable(
-            (By.XPATH, "//span[contains(text(),'Adults')]/following-sibling::span[contains(@class, 'plus')]")
-        ))
-        for i in range(num_adults - 1):  # if 1 adult already set.
-            adult_plus_btn.click()
-            time.sleep(1)
-
-        # Click on the Apply / Done button for guests.
-        apply_button = wait.until(EC.element_to_be_clickable(
-            (By.XPATH, "//button[text()='APPLY']")
-        ))
-        apply_button.click()
-    except Exception as e:
-        print("Error setting occupancy (rooms & guests):", e)
-
-    # 4d. Click the Search button
-    try:
-        search_button = wait.until(EC.element_to_be_clickable(
-            (By.XPATH, "//button[text()='Search']")
-        ))
-        search_button.click()
-    except Exception as e:
-        print("Error clicking search button:", e)
-    # ---------------------------
-    # 5. Parse the search results for the specific hotel and obtain price details
-    # ---------------------------
-    # Allow time for the search results page to load.
-    time.sleep(10)
 
     prices = []
     try:
