@@ -3,6 +3,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+from requests import options
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -31,42 +32,62 @@ def send_email(receiver_email, subject, body, sender_email, sender_password):
         print("Error sending email:", e)
 
 
-def main():
+def configure_chrome_options():
     # ---------------------------
-    # 1. Get user inputs
+    # Set up Chrome options
     # ---------------------------
-    place = input("Enter place: ")
-    checkin_date = input("Enter check-in date (e.g. Thu Oct 12 2023): ")
-    checkout_date = input("Enter check-out date (e.g. Sat Oct 14 2023): ")
-    num_rooms = int(input("Enter number of rooms: "))
-    num_adults = int(input("Enter number of adults: "))
-    hotel_name = input("Enter hotel name to search: ")
-    threshold_price = float(input("Enter price threshold: "))
-    receiver_email = input("Enter your email address to receive alert: ")
-    sender_email = "youremail@example.com"
-    sender_password = "yourpassword"
-    # ---------------------------
-    # 2. Set up Chrome options and initialize the webdriver
-    # ---------------------------
+    prefs = {"download.default_directory": "/path/to/download", "safebrowsing.enabled": True}
     chrome_options = Options()
     chrome_options.add_argument("--disable-notifications")
     chrome_options.add_argument("--start-maximized")
     # chrome_options.add_argument("--headless")
+    chrome_options.add_experimental_option("prefs", prefs)
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option("useAutomationExtension", False)
 
+    return options
+
+def extract_data(options):
     # Initialize the WebDriver
-    driver = webdriver.Chrome(options=chrome_options)
-    wait = WebDriverWait(driver, 20)
+    driver = webdriver.Chrome(options=options)
+
     # ---------------------------
-    # 3. Open MakeMyTrip Hotels page
+    # Open MakeMyTrip Hotels page
     # ---------------------------
+
     driver.get("https://www.makemytrip.com/hotels/")
+    driver.implicitly_wait(5)
     time.sleep(5)
+
     # Example: Click on a blank area to close any login/sign-up popups that appear.
     try:
         body = driver.find_element(By.TAG_NAME, "body")
         body.click()
     except Exception as e:
         print("No popup to dismiss:", e)
+
+
+
+
+def main():
+    # ---------------------------
+    # 1. Get user inputs
+    # ---------------------------
+    place = 'Srinagar'
+    checkin_date = ""
+    checkout_date = ""
+    num_rooms = ""
+    num_adults = "2"
+    hotel_name = input("Enter hotel name to search: ")
+    threshold_price = float(input("Enter price threshold: "))
+    receiver_email = input("Enter your email address to receive alert: ")
+    sender_email = "youremail@example.com"
+    sender_password = "yourpassword"
+
+
+
+
+
     # ---------------------------
     # 4. Fill in the search form
     # ---------------------------
