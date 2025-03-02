@@ -86,6 +86,7 @@ def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_na
         n += 1
         time.sleep(1)
 
+    # Room details for each hotel
     details = []
     for h_name, h_link in hotel_links:
         print(h_name)
@@ -112,76 +113,52 @@ def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_na
                     print((h_name, r_name, price_wrapper))
                     time.sleep(2)
 
+    # ---------------------------
+    # Clean-up: close the browser
+    # ---------------------------
+    driver.close()
+
     return details
 
 
 def main():
     # ---------------------------
-    # 1. Get user inputs
+    # User inputs
     # ---------------------------
-    place = 'Srinagar'
-    checkin_date = ""
-    checkout_date = ""
-    num_rooms = ""
-    num_adults = "2"
-    hotel_name = input("Enter hotel name to search: ")
-    threshold_price = float(input("Enter price threshold: "))
+
     receiver_email = input("Enter your email address to receive alert: ")
     sender_email = "youremail@example.com"
     sender_password = "yourpassword"
 
+    options = configure_chrome_options()
+
+    srinagar_prices = extract_data(options,place='Srinagar',place_id='CTSXR',checkin_date='05012025',
+                                   checkout_date='05022025',hotel_names=['rah bagh by the orchard',
+                                                                         'four points by sheraton srinagar',
+                                                                         'sukoon houseboat'])
+
+    send_email(receiver_email)
 
 
 
 
-
-
-
-
-    prices = []
-    try:
-        # Locate hotel listings.
-        hotel_cards = wait.until(EC.presence_of_all_elements_located(
-            (By.XPATH, "//div[contains(@class,'listingRowOuter')]")
-        ))
-
-        for card in hotel_cards:
-            try:
-                title_elem = card.find_element(By.XPATH, ".//p[contains(@class,'latoBlack')]")
-                hotel_title = title_elem.text
-
-                if hotel_name.lower() in hotel_title.lower():
-                    # Assuming the price element holds text like "₹12,345"
-                    price_elem = card.find_element(By.XPATH, ".//p[contains(@class,'actualPrice')]")
-                    price_text = price_elem.text.strip()
-                    price_numeric = float(price_text.replace("₹", "").replace(",", ""))
-                    prices.append(price_numeric)
-            except Exception as inner_e:
-                continue
-    except Exception as e:
-        print("Error reading hotel listings:", e)
-    # ---------------------------
-    # 6. Check if any of the retrieved prices is below threshold and send alert email
-    # ---------------------------
-    if not prices:
-        print("No listings found for the hotel name provided.")
-    else:
-        lowest_price = min(prices)
-        print(f"Lowest price found for '{hotel_name}' is: ₹{lowest_price:.2f}")
-        if lowest_price < threshold_price:
-            subject = f"Price Alert: {hotel_name} is now ₹{lowest_price:.2f}"
-            body = (f"Good news!\n\n"
-                    f"The price for {hotel_name} has dropped to ₹{lowest_price:.2f},\n"
-                    f"which is below your threshold of ₹{threshold_price:.2f}.\n\n"
-                    "Visit MakeMyTrip for booking details.")
-            send_email(receiver_email, subject, body, sender_email, sender_password)
-        else:
-            print("Price is above threshold; no email alert sent.")
-
-    # ---------------------------
-    # 7. Clean-up: close the browser
-    # ---------------------------
-    driver.close()
+    # # ---------------------------
+    # # Check if any of the retrieved prices is below threshold and send alert email
+    # # ---------------------------
+    # if not prices:
+    #     print("No listings found for the hotel name provided.")
+    # else:
+    #     lowest_price = min(prices)
+    #     print(f"Lowest price found for '{hotel_name}' is: ₹{lowest_price:.2f}")
+    #     if lowest_price < threshold_price:
+    #         subject = f"Price Alert: {hotel_name} is now ₹{lowest_price:.2f}"
+    #         body = (f"Good news!\n\n"
+    #                 f"The price for {hotel_name} has dropped to ₹{lowest_price:.2f},\n"
+    #                 f"which is below your threshold of ₹{threshold_price:.2f}.\n\n"
+    #                 "Visit MakeMyTrip for booking details.")
+    #         send_email(receiver_email, subject, body, sender_email, sender_password)
+    #     else:
+    #         print("Price is above threshold; no email alert sent.")
 
 
 if __name__ == '__main__':
