@@ -2,13 +2,15 @@ import time
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-
+import undetected_chromedriver as uc
+import selenium
 from requests import options
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+
 
 def send_email(receiver_email, subject, body, sender_email, sender_password):
     """
@@ -32,6 +34,20 @@ def send_email(receiver_email, subject, body, sender_email, sender_password):
         print("Error sending email:", e)
 
 
+def scroll_to_bottom(driver, pause_time=3):
+    last_height = driver.execute_script("return document.body.scrollHeight")
+
+    for _ in range(10):
+        # Scroll down to the bottom.
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(pause_time)
+        # Calculate new scroll height and compare with last scroll height.
+        new_height = driver.execute_script("return document.body.scrollHeight")
+        if new_height == last_height:
+            break
+        last_height = new_height
+
+
 def configure_chrome_options():
     # ---------------------------
     # Set up Chrome options
@@ -40,33 +56,35 @@ def configure_chrome_options():
     chrome_options = Options()
     chrome_options.add_argument("--disable-notifications")
     chrome_options.add_argument("--start-maximized")
-    # chrome_options.add_argument("--headless")
-    chrome_options.add_experimental_option("prefs", prefs)
+    # chrome_options.add_experimental_option("prefs", prefs)
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option("useAutomationExtension", False)
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
 
     return chrome_options
 
 
 def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_names):
     # Initialize the WebDriver
-    driver = webdriver.Chrome(options=options)
+    # driver = webdriver.Chrome(options=options)
+    driver = uc.Chrome(use_subprocess=True)
 
     # ---------------------------
     # Open MakeMyTrip Hotels page
     # ---------------------------
 
     driver.get(f"https://www.makemytrip.com/hotels/hotel-listing/?checkin={checkin_date}&city={place_id}&checkout={checkout_date}&roomStayQualifier=2e0e&locusId={place_id}&country=IN&locusType=city&searchText={place}&regionNearByExp=3&rsc=1e2e0e")
-    driver.implicitly_wait(15)
+    driver.implicitly_wait(10)
     time.sleep(3)
 
     # Example: Click on a blank area to close any login/sign-up popups that appear.
-    try:
-        body = driver.find_element(By.TAG_NAME, "body")
-        body.click()
-    except Exception as e:
-        print("No popup to dismiss:", e)
+    # try:
+    #     body = driver.find_element(By.TAG_NAME, "body")
+    #     body.click()
+    # except Exception as e:
+    #     print("No popup to dismiss:", e)
+
+    scroll_to_bottom(driver=driver)
 
     # hotel page
     hotel_links = []
@@ -81,6 +99,7 @@ def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_na
         hotel_name = hotel_element.find_element(By.ID, "hlistpg_hotel_name").text
         print(hotel_name)
         if hotel_name.strip().lower() in hotel_names:
+            print(f"{hotel_name} found in the list Hotel Names!")
             hotel_link = hotel_element.find_element(By.TAG_NAME, "a").get_attribute("href")
             hotel_links.append((hotel_name, hotel_link))
             if len(hotel_links) == len(hotel_names):
@@ -95,10 +114,13 @@ def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_na
         driver.get(h_link)
         time.sleep(5)
 
+        scroll_to_bottom(driver=driver)
+
         room_section = driver.find_element(By.ID, "roomSection")
         m = 0
         while True:
             try:
+                print(f"Number of room: {m}")
                 rooms_ = room_section.find_element(By.ID, f"room{m}")
             except:
                 break
