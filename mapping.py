@@ -13,6 +13,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 
 
+
 def send_email(receiver_email, subject, body, sender_email, sender_password):
     """
     Sends an email alert via SMTP.
@@ -65,17 +66,13 @@ def configure_chrome_options():
     return chrome_options
 
 
-def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_names):
-    # Initialize the WebDriver
-    # driver = webdriver.Chrome(options=options)
-    driver = uc.Chrome(use_subprocess=True)
+def extract_data(driver, place, place_id, checkin_date, checkout_date, hotel_names):
 
     # ---------------------------
     # Open MakeMyTrip Hotels page
     # ---------------------------
 
     driver.get(f"https://www.makemytrip.com/hotels/hotel-listing/?checkin={checkin_date}&city={place_id}&checkout={checkout_date}&roomStayQualifier=2e0e&locusId={place_id}&country=IN&locusType=city&searchText={place}&regionNearByExp=3&rsc=1e2e0e")
-    driver.implicitly_wait(10)
     time.sleep(3)
 
     # Example: Click on a blank area to close any login/sign-up popups that appear.
@@ -120,7 +117,7 @@ def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_na
         m = 0
         while True:
             try:
-                print(f"Number of room: {m}")
+                print(f"Number of room: { m+ 1}")
                 rooms_ = room_section.find_element(By.ID, f"room{m}")
             except:
                 break
@@ -133,20 +130,16 @@ def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_na
                 if 'breakfast' in text_type.lower():
                     price_parent = typ.find_element(By.CLASS_NAME, "rmSelect__card--rowRightDtlNew")
                     price_wrapper = price_parent.find_element(By.CLASS_NAME, "rmPayable__newDtl--left").text
-                    details.append((h_name, r_name, price_wrapper.replace("\n", ";")))
-                    print((h_name, r_name, text_type, price_wrapper))
+                    prices = price_wrapper.replace("\n", ";")
+                    details.append((h_name, r_name, text_type, prices))
+                    print((h_name, r_name, text_type, prices))
                     time.sleep(2)
             m+=1
-
-    # ---------------------------
-    # Clean-up: close the browser
-    # ---------------------------
-    driver.close()
 
     return details
 
 
-def body(price_list):
+def email_body(price_list):
     text = ''
     for hotel, room, type_, price in price_list:
         text += f"Hotel: {hotel.upper()}\nRoom Type: {room}: {type_}, Price: {price}\n"
@@ -160,23 +153,55 @@ def main():
     print("Time of Run:", formatted_datetime)
 
     options = configure_chrome_options()
+    driver = uc.Chrome(use_subprocess=True) # Initialize the WebDriver
+    driver.implicitly_wait(10)
 
-    srinagar_prices = extract_data(options,place='Srinagar',place_id='CTSXR',checkin_date='04292025',
-                                   checkout_date='04302025',hotel_names=['rah bagh by the orchard',
-                                                                         'four points by sheraton srinagar',
-                                                                         'sukoon houseboat'])
-    email_body = body(price_list=srinagar_prices)
+    try:
+        srinagar_prices = extract_data(driver=driver,place='Srinagar',place_id='CTSXR',checkin_date='04292025',
+                                       checkout_date='04302025',hotel_names=['rah bagh by the orchard',
+                                                                             'four points by sheraton srinagar',
+                                                                             'sukoon houseboat'])
+        email_text_1 = email_body(price_list=srinagar_prices)
+    except Exception as e:
+        print(f"RUN FAILED for SRINAGAR, ERROR: {e}")
+        email_text_1 = f"RUN FAILED for SRINAGAR 29.04, ERROR: {e}"
+
+    time.sleep(2)
+    try:
+        srinagar_prices_2 = extract_data(driver=driver,place='Srinagar',place_id='CTSXR',checkin_date='05012025',
+                                       checkout_date='05022025',hotel_names=['rah bagh by the orchard',
+                                                                             'four points by sheraton srinagar',
+                                                                             'sukoon houseboat'])
+        email_text_2 = email_body(price_list=srinagar_prices_2)
+    except Exception as e:
+        print(f"RUN FAILED for SRINAGAR, ERROR: {e}")
+        email_text_2 = f"RUN FAILED for SRINAGAR 01.05, ERROR: {e}"
+
+    time.sleep(2)
+    try:
+        gulmarg_prices = extract_data(driver=driver,place='Gulmarg',place_id='CTXGU',checkin_date='04262025',
+                                       checkout_date='04272025',hotel_names=['green rooms resort gulmarg'])
+        email_text_3 = email_body(price_list=gulmarg_prices)
+    except Exception as e:
+        print(f"RUN FAILED for GULMARG, ERROR: {e}")
+        email_text_3 = f"RUN FAILED for GULMARG, ERROR: {e}"
+
+    # ---------------------------
+    # Clean-up: close the browser
+    # ---------------------------
+    driver.close()
 
     # ---------------------------
     # User inputs
     # ---------------------------
 
 
+    email_text = (f'{"-"*50}29.04.2025{"-"*50}\n' + email_text_1 + f'\n{"-"*50}01.05.2025{"-"*50}\n' + email_text_2 +
+                  f'\n{"-"*50}26.04.2025{"-"*50}\n' + email_text_3)
     subject = f"MMT PRICE ALERT {formatted_datetime}"
 
-    send_email(receiver_email=receiver_email,subject=subject,body=email_body,
+    send_email(receiver_email=receiver_email,subject=subject,body=email_text,
                sender_email=sender_email, sender_password=sender_password)
-
 
 
 if __name__ == '__main__':
