@@ -44,8 +44,10 @@ def configure_chrome_options():
     chrome_options.add_experimental_option("prefs", prefs)
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option("useAutomationExtension", False)
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
 
-    return options
+    return chrome_options
+
 
 def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_names):
     # Initialize the WebDriver
@@ -56,8 +58,8 @@ def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_na
     # ---------------------------
 
     driver.get(f"https://www.makemytrip.com/hotels/hotel-listing/?checkin={checkin_date}&city={place_id}&checkout={checkout_date}&roomStayQualifier=2e0e&locusId={place_id}&country=IN&locusType=city&searchText={place}&regionNearByExp=3&rsc=1e2e0e")
-    driver.implicitly_wait(7)
-    time.sleep(5)
+    driver.implicitly_wait(15)
+    time.sleep(3)
 
     # Example: Click on a blank area to close any login/sign-up popups that appear.
     try:
@@ -68,7 +70,7 @@ def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_na
 
     # hotel page
     hotel_links = []
-    hotel_container = driver.find_element(By.CLASS_NAME, "hotelListingContainer")
+    hotel_container = driver.find_element(By.ID, "hotelListingContainer")
     n = 0
     while True:
         try:
@@ -121,26 +123,34 @@ def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_na
     return details
 
 
-def main():
-    # ---------------------------
-    # User inputs
-    # ---------------------------
+def body(price_list):
+    text = ''
+    for hotel, room, price in price_list:
+        text += f"Hotel: {hotel.upper()}\nRoom Type: {room}, Price: {price}\n"
 
-    receiver_email = input("Enter your email address to receive alert: ")
-    sender_email = "youremail@example.com"
-    sender_password = "yourpassword"
+    return text
+
+
+def main():
 
     options = configure_chrome_options()
 
-    srinagar_prices = extract_data(options,place='Srinagar',place_id='CTSXR',checkin_date='05012025',
-                                   checkout_date='05022025',hotel_names=['rah bagh by the orchard',
+    srinagar_prices = extract_data(options,place='Srinagar',place_id='CTSXR',checkin_date='04292025',
+                                   checkout_date='04302025',hotel_names=['rah bagh by the orchard',
                                                                          'four points by sheraton srinagar',
                                                                          'sukoon houseboat'])
+    email_body = body(price_list=srinagar_prices)
 
-    send_email(receiver_email)
+    # ---------------------------
+    # User inputs
+    # ---------------------------
+    receiver_email = ''
+    sender_email = ""
+    sender_password = ""
+    subject = "MMT PRICE ALERT"
 
-
-
+    send_email(receiver_email=receiver_email,subject=subject,body=email_body,
+               sender_email=sender_email, sender_password=sender_password)
 
     # # ---------------------------
     # # Check if any of the retrieved prices is below threshold and send alert email
