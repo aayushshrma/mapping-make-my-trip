@@ -6,6 +6,7 @@ import undetected_chromedriver as uc
 import selenium
 from requests import options
 from selenium import webdriver
+from datetime import datetime
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -37,7 +38,7 @@ def send_email(receiver_email, subject, body, sender_email, sender_password):
 def scroll_to_bottom(driver, pause_time=3):
     last_height = driver.execute_script("return document.body.scrollHeight")
 
-    for _ in range(10):
+    while True:
         # Scroll down to the bottom.
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(pause_time)
@@ -84,8 +85,6 @@ def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_na
     # except Exception as e:
     #     print("No popup to dismiss:", e)
 
-    scroll_to_bottom(driver=driver)
-
     # hotel page
     hotel_links = []
     hotel_container = driver.find_element(By.ID, "hotelListingContainer")
@@ -106,6 +105,7 @@ def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_na
                 break
         n += 1
         time.sleep(1)
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
     # Room details for each hotel
     details = []
@@ -114,7 +114,7 @@ def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_na
         driver.get(h_link)
         time.sleep(5)
 
-        scroll_to_bottom(driver=driver)
+        # scroll_to_bottom(driver=driver)
 
         room_section = driver.find_element(By.ID, "roomSection")
         m = 0
@@ -130,12 +130,13 @@ def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_na
             for typ in type_:
                 left_box = typ.find_element(By.CLASS_NAME, "rmSelect__card--rowLeftDtlNew")
                 text_type = left_box.find_element(By.TAG_NAME, "h5").text
-                if 'breakfast only' in text_type.lower():
+                if 'breakfast' in text_type.lower():
                     price_parent = typ.find_element(By.CLASS_NAME, "rmSelect__card--rowRightDtlNew")
                     price_wrapper = price_parent.find_element(By.CLASS_NAME, "rmPayable__newDtl--left").text
-                    details.append((h_name, r_name, price_wrapper))
-                    print((h_name, r_name, price_wrapper))
+                    details.append((h_name, r_name, price_wrapper.replace("\n", ";")))
+                    print((h_name, r_name, text_type, price_wrapper))
                     time.sleep(2)
+            m+=1
 
     # ---------------------------
     # Clean-up: close the browser
@@ -147,13 +148,16 @@ def extract_data(options, place, place_id, checkin_date, checkout_date, hotel_na
 
 def body(price_list):
     text = ''
-    for hotel, room, price in price_list:
-        text += f"Hotel: {hotel.upper()}\nRoom Type: {room}, Price: {price}\n"
+    for hotel, room, type_, price in price_list:
+        text += f"Hotel: {hotel.upper()}\nRoom Type: {room}: {type_}, Price: {price}\n"
 
     return text
 
 
 def main():
+    current_datetime = datetime.now()
+    formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
+    print("Time of Run:", formatted_datetime)
 
     options = configure_chrome_options()
 
@@ -166,31 +170,13 @@ def main():
     # ---------------------------
     # User inputs
     # ---------------------------
-    receiver_email = ''
-    sender_email = ""
-    sender_password = ""
-    subject = "MMT PRICE ALERT"
+
+
+    subject = f"MMT PRICE ALERT {formatted_datetime}"
 
     send_email(receiver_email=receiver_email,subject=subject,body=email_body,
                sender_email=sender_email, sender_password=sender_password)
 
-    # # ---------------------------
-    # # Check if any of the retrieved prices is below threshold and send alert email
-    # # ---------------------------
-    # if not prices:
-    #     print("No listings found for the hotel name provided.")
-    # else:
-    #     lowest_price = min(prices)
-    #     print(f"Lowest price found for '{hotel_name}' is: ₹{lowest_price:.2f}")
-    #     if lowest_price < threshold_price:
-    #         subject = f"Price Alert: {hotel_name} is now ₹{lowest_price:.2f}"
-    #         body = (f"Good news!\n\n"
-    #                 f"The price for {hotel_name} has dropped to ₹{lowest_price:.2f},\n"
-    #                 f"which is below your threshold of ₹{threshold_price:.2f}.\n\n"
-    #                 "Visit MakeMyTrip for booking details.")
-    #         send_email(receiver_email, subject, body, sender_email, sender_password)
-    #     else:
-    #         print("Price is above threshold; no email alert sent.")
 
 
 if __name__ == '__main__':
