@@ -1,3 +1,4 @@
+import os
 import time
 import smtplib
 import platform
@@ -52,13 +53,8 @@ def configure_chrome_options():
     # Essential options for Docker
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
-
-    if platform.system() != 'Windows':
-        # Options specific for Docker/Linux with Xvfb
-        chrome_options.add_argument('--display=:99')
-        chrome_options.add_argument('--disable-gpu')
-
-    # Common options for both environments
+    chrome_options.add_argument(f'--display={os.environ.get("DISPLAY", ":0")}')
+    chrome_options.add_argument('--disable-gpu')
     chrome_options.add_argument('--start-maximized')
     chrome_options.add_argument('--disable-notifications')
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
@@ -211,15 +207,15 @@ def main():
         # On Windows, run without Xvfb
         email_text = run_scraper()
 
-        # ---------------------------
-        # User inputs
-        # ---------------------------
+    # ---------------------------
+    # User inputs
+    # ---------------------------
 
 
-        subject = f"MMT PRICE ALERT {formatted_datetime}"
+    subject = f"MMT PRICE ALERT {formatted_datetime}"
 
-        send_email(receiver_email=receiver_email, subject=subject, body=email_text,
-                   sender_email=sender_email, sender_password=sender_password)
+    send_email(receiver_email=receiver_email, subject=subject, body=email_text,
+               sender_email=sender_email, sender_password=sender_password)
 
 
 if __name__ == '__main__':
