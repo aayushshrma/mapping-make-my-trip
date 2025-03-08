@@ -3,15 +3,9 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import undetected_chromedriver as uc
-import selenium
-from requests import options
-from selenium import webdriver
 from datetime import datetime
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
-
 
 
 def send_email(receiver_email, subject, body, sender_email, sender_password):
@@ -51,18 +45,16 @@ def scroll_to_bottom(driver, pause_time=3):
 
 
 def configure_chrome_options():
-    # ---------------------------
-    # Set up Chrome options
-    # ---------------------------
-    prefs = {"download.default_directory": "/path/to/download", "safebrowsing.enabled": True}
-    chrome_options = Options()
-    chrome_options.add_argument("--disable-notifications")
-    chrome_options.add_argument("--start-maximized")
-    # chrome_options.add_experimental_option("prefs", prefs)
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    chrome_options.add_experimental_option("useAutomationExtension", False)
-
+    chrome_options = uc.ChromeOptions()
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.add_argument('--disable-gpu')
+    chrome_options.add_argument('--disable-setuid-sandbox')
+    chrome_options.add_argument('--no-first-run')
+    chrome_options.add_argument('--no-zygote')
+    chrome_options.add_argument('--single-process')
+    chrome_options.add_argument('--disable-extensions')
     return chrome_options
 
 
@@ -123,17 +115,18 @@ def extract_data(driver, place, place_id, checkin_date, checkout_date, hotel_nam
                 break
             r_name_wrap = rooms_.find_element(By.CLASS_NAME, "rmSelect__card--leftDtlNew")
             r_name = r_name_wrap.find_element(By.TAG_NAME, "h2").text
-            type_ = rooms_.find_elements(By.CLASS_NAME, "rmSelect__card--rowDtlNew.rmSelect__card--rowNew")
-            for typ in type_:
-                left_box = typ.find_element(By.CLASS_NAME, "rmSelect__card--rowLeftDtlNew")
-                text_type = left_box.find_element(By.TAG_NAME, "h5").text
-                if 'breakfast' in text_type.lower():
-                    price_parent = typ.find_element(By.CLASS_NAME, "rmSelect__card--rowRightDtlNew")
-                    price_wrapper = price_parent.find_element(By.CLASS_NAME, "rmPayable__newDtl--left").text
-                    prices = price_wrapper.replace("\n", ";")
-                    details.append((h_name, r_name, text_type, prices))
-                    print((h_name, r_name, text_type, prices))
-                    time.sleep(2)
+            if any(sub in r_name.lower() for sub in ['junior suite', 'suite room', 'royal suite', 'luxury first floor']):
+                type_ = rooms_.find_elements(By.CLASS_NAME, "rmSelect__card--rowDtlNew.rmSelect__card--rowNew")
+                for typ in type_:
+                    left_box = typ.find_element(By.CLASS_NAME, "rmSelect__card--rowLeftDtlNew")
+                    text_type = left_box.find_element(By.TAG_NAME, "h5").text
+                    if 'breakfast' in text_type.lower():
+                        price_parent = typ.find_element(By.CLASS_NAME, "rmSelect__card--rowRightDtlNew")
+                        price_wrapper = price_parent.find_element(By.CLASS_NAME, "rmPayable__newDtl--left").text
+                        prices = price_wrapper.replace("\n", ";")
+                        details.append((h_name, r_name, text_type, prices))
+                        print((h_name, r_name, text_type, prices))
+                        time.sleep(2)
             m+=1
 
     return details
@@ -142,7 +135,9 @@ def extract_data(driver, place, place_id, checkin_date, checkout_date, hotel_nam
 def email_body(price_list):
     text = ''
     for hotel, room, type_, price in price_list:
-        text += f"Hotel: {hotel.upper()}\nRoom Type: {room}: {type_}, Price: {price}\n"
+        if hotel.upper() not in text:
+            text += f"\nHOTEL: {hotel.upper()}"
+        text += f"\n{room}: {type_}, PRICE: {price}"
 
     return text
 
@@ -152,8 +147,7 @@ def main():
     formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
     print("Time of Run:", formatted_datetime)
 
-    options = configure_chrome_options()
-    driver = uc.Chrome(use_subprocess=True) # Initialize the WebDriver
+    driver = uc.Chrome(options=configure_chrome_options(), use_subprocess=True) # Initialize the WebDriver
     driver.implicitly_wait(10)
 
     try:
