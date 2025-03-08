@@ -1,11 +1,13 @@
 import time
 import smtplib
+import platform
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import undetected_chromedriver as uc
 from datetime import datetime
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
+if platform.system() != 'Windows':
+    from xvfbwrapper import Xvfb
 
 
 def send_email(receiver_email, subject, body, sender_email, sender_password):
@@ -46,15 +48,21 @@ def scroll_to_bottom(driver, pause_time=3):
 
 def configure_chrome_options():
     chrome_options = uc.ChromeOptions()
+
+    # Essential options for Docker
     chrome_options.add_argument('--no-sandbox')
-    chrome_options.add_argument('--headless')
     chrome_options.add_argument('--disable-dev-shm-usage')
-    chrome_options.add_argument('--disable-gpu')
-    chrome_options.add_argument('--disable-setuid-sandbox')
-    chrome_options.add_argument('--no-first-run')
-    chrome_options.add_argument('--no-zygote')
-    chrome_options.add_argument('--single-process')
-    chrome_options.add_argument('--disable-extensions')
+
+    if platform.system() != 'Windows':
+        # Options specific for Docker/Linux with Xvfb
+        chrome_options.add_argument('--display=:99')
+        chrome_options.add_argument('--disable-gpu')
+
+    # Common options for both environments
+    chrome_options.add_argument('--start-maximized')
+    chrome_options.add_argument('--disable-notifications')
+    chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+
     return chrome_options
 
 
@@ -142,12 +150,10 @@ def email_body(price_list):
     return text
 
 
-def main():
-    current_datetime = datetime.now()
-    formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
-    print("Time of Run:", formatted_datetime)
+def run_scraper():
 
     driver = uc.Chrome(options=configure_chrome_options(), use_subprocess=True) # Initialize the WebDriver
+    # driver = uc.Chrome(use_subprocess=True)
     driver.implicitly_wait(10)
 
     try:
@@ -179,23 +185,41 @@ def main():
     except Exception as e:
         print(f"RUN FAILED for GULMARG, ERROR: {e}")
         email_text_3 = f"RUN FAILED for GULMARG, ERROR: {e}"
-
     # ---------------------------
     # Clean-up: close the browser
     # ---------------------------
+
     driver.close()
 
-    # ---------------------------
-    # User inputs
-    # ---------------------------
+    email_text = (
+            f'{"-" * 50}29.04.2025{"-" * 50}\n' + email_text_1 + f'\n{"-" * 50}01.05.2025{"-" * 50}\n' + email_text_2 +
+            f'\n{"-" * 50}26.04.2025{"-" * 50}\n' + email_text_3)
+
+    return email_text
 
 
-    email_text = (f'{"-"*50}29.04.2025{"-"*50}\n' + email_text_1 + f'\n{"-"*50}01.05.2025{"-"*50}\n' + email_text_2 +
-                  f'\n{"-"*50}26.04.2025{"-"*50}\n' + email_text_3)
-    subject = f"MMT PRICE ALERT {formatted_datetime}"
+def main():
+    current_datetime = datetime.now()
+    formatted_datetime = current_datetime.strftime("%Y-%m-%d %H:%M:%S")
+    print("Time of Run:", formatted_datetime)
 
-    send_email(receiver_email=receiver_email,subject=subject,body=email_text,
-               sender_email=sender_email, sender_password=sender_password)
+    # Use Xvfb only in Docker (Linux)
+    if platform.system() != 'Windows':
+        with Xvfb(width=1920, height=1080, colordepth=24):
+            email_text = run_scraper()
+    else:
+        # On Windows, run without Xvfb
+        email_text = run_scraper()
+
+        # ---------------------------
+        # User inputs
+        # ---------------------------
+
+
+        subject = f"MMT PRICE ALERT {formatted_datetime}"
+
+        send_email(receiver_email=receiver_email, subject=subject, body=email_text,
+                   sender_email=sender_email, sender_password=sender_password)
 
 
 if __name__ == '__main__':
